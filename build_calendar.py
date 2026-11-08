@@ -168,17 +168,12 @@ def build(events):
         close = datetime.fromisoformat(d + "T13:00").replace(tzinfo=ZoneInfo(NEW_YORK))
         if close.date() < today:
             continue
-        summary = (f"\U0001F1FA\U0001F1F8 US-B\u00f6rse schlie\u00dft "
-                   f"{close.astimezone(BERLIN):%H:%M}: {name}")
-        wd = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"][close.weekday()]
-        note = (f"Verk\u00fcrzter Handel {wd} {close:%d.%m.%Y}, "
-                f"Schluss {close.astimezone(BERLIN):%H:%M} Uhr Berlin "
-                f"({close:%H:%M} Uhr New York)")
+        summary = f"US Close {close.astimezone(BERLIN):%H:%M} \U0001F1FA\U0001F1F8"
         lines += [
             "BEGIN:VEVENT", f"UID:us-early-{d}@ff-news-calendar", f"DTSTAMP:{now}",
             f"DTSTART;TZID=Europe/Berlin:{fmt_local(close)}",
             f"DTEND;TZID=Europe/Berlin:{fmt_local(close + timedelta(minutes=EVENT_LEN_MIN))}",
-            f"SUMMARY:{esc(summary)}", f"DESCRIPTION:{esc(note)}", "TRANSP:TRANSPARENT",
+            f"SUMMARY:{esc(summary)}", "TRANSP:TRANSPARENT",
             "BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{esc(summary)}",
             "TRIGGER:-P1D", "END:VALARM", "END:VEVENT",
         ]
