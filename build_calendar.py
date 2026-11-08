@@ -22,12 +22,12 @@ from zoneinfo import ZoneInfo
 # ---------- Einstellungen ----------
 FEED_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 RED_CURRENCIES = {"AUD", "CAD", "CHF", "CNY", "EUR", "GBP", "JPY", "NZD", "USD"}
-ORANGE_CURRENCIES = {"USD", "EUR", "GBP"}  # leeres Set = Orange komplett aus
+ORANGE_CURRENCIES = set()  # Orange aus: QT Power hat keine News-Regel (Help Center, Stand 29.10.2026)
 WINDOW_MIN = 5            # QT: +/-5 Min; 5ers: +/-2 Min (liegt innerhalb)
 ALARM_MIN_BEFORE = 10     # Erinnerung vor der Veroeffentlichung
 EVENT_LEN_MIN = 5         # Laenge des Kalendereintrags ab Veroeffentlichung
 OUT_FILE = Path(__file__).parent / "docs" / "news.ics"
-CAL_NAME = "News-Sperren (FF Rot + Orange USD/EUR/GBP)"
+CAL_NAME = "News-Sperren (FF Rot)"
 # -----------------------------------
 
 # NYSE-Feiertage und verkuerzte Handelstage (Quelle: NYSE/ICE Pressemitteilung 23.12.2025)
