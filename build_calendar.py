@@ -210,6 +210,53 @@ def build(events):
     return "\r\n".join(fold(l) for l in lines) + "\r\n", len(groups)
 
 
+def easter(y):
+    a, b, c = y % 19, y // 100, y % 100
+    d, e = b // 4, b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = c // 4, c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = (h + l - 7 * m + 114) % 31 + 1
+    return datetime(y, month, day).date()
+
+
+def berlin_holidays(year):
+    """Gesetzliche Feiertage Berlin (arbeitsfrei)."""
+    e = easter(year)
+    d = lambda m, t: datetime(year, m, t).date()
+    return [
+        (d(1, 1), "Neujahr"), (d(3, 8), "Frauentag"),
+        (e - timedelta(days=2), "Karfreitag"), (e + timedelta(days=1), "Ostermontag"),
+        (d(5, 1), "Tag der Arbeit"), (e + timedelta(days=39), "Christi Himmelfahrt"),
+        (e + timedelta(days=50), "Pfingstmontag"), (d(10, 3), "Tag der Deutschen Einheit"),
+        (d(12, 25), "1. Weihnachtstag"), (d(12, 26), "2. Weihnachtstag"),
+    ]
+
+
+def build_berlin():
+    now = fmt(datetime.now(timezone.utc))
+    this_year = datetime.now(BERLIN).year
+    lines = [
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ff-news-calendar//DE",
+        "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:Feiertage Berlin",
+        "X-PUBLISHED-TTL:PT24H", "REFRESH-INTERVAL;VALUE=DURATION:PT24H",
+    ]
+    for y in range(this_year - 1, this_year + 3):
+        for day, name in berlin_holidays(y):
+            lines += [
+                "BEGIN:VEVENT", f"UID:berlin-{day:%Y%m%d}@ff-news-calendar", f"DTSTAMP:{now}",
+                f"DTSTART;VALUE=DATE:{day:%Y%m%d}",
+                f"DTEND;VALUE=DATE:{day + timedelta(days=1):%Y%m%d}",
+                f"SUMMARY:{esc(name)}", "TRANSP:TRANSPARENT", "END:VEVENT",
+            ]
+    lines.append("END:VCALENDAR")
+    return "\r\n".join(fold(l) for l in lines) + "\r\n"
+
+
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else None
     events = json.loads(Path(src).read_text()) if src else fetch(FEED_URL)
@@ -217,6 +264,7 @@ def main():
     OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUT_FILE.write_text(ics, encoding="utf-8", newline="")
     print(f"{n} Sperrfenster geschrieben nach {OUT_FILE}")
+    (OUT_FILE.parent / "berlin.ics").write_text(build_berlin(), encoding="utf-8", newline="")
 
 
 if __name__ == "__main__":
