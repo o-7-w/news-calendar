@@ -44,6 +44,16 @@ US_HOLIDAYS = [
     ("2028-09-04", "Labor Day"), ("2028-11-23", "Thanksgiving"),
     ("2028-12-25", "Christmas"),
 ]
+# Eurex (FDAX/FESX) geschlossen - Quelle: Eurex Trading Calendar 2026 + indikativer Kalender 2027/28
+# Flagge: "EU" = Eurex komplett zu (alle Derivate), "DE" = nur deutsche Aktien-/Indexderivate (FDAX)
+EUREX_HOLIDAYS = [
+    ("2026-12-24", "Heiligabend", "EU"), ("2026-12-25", "1. Weihnachtstag", "EU"),
+    ("2026-12-31", "Silvester", "EU"),
+    ("2027-01-01", "Neujahr", "EU"), ("2027-03-26", "Karfreitag", "EU"), ("2027-03-29", "Ostermontag", "EU"),
+    ("2027-12-24", "Heiligabend", "EU"), ("2027-12-31", "Silvester", "EU"),
+    ("2028-04-14", "Karfreitag", "EU"), ("2028-04-17", "Ostermontag", "EU"), ("2028-05-01", "Tag der Arbeit", "EU"),
+    ("2028-12-25", "1. Weihnachtstag", "EU"), ("2028-12-26", "2. Weihnachtstag", "EU"),
+]
 US_EARLY_CLOSE = [  # Schluss 13:00 New York
     ("2026-11-27", "Tag nach Thanksgiving"), ("2026-12-24", "Heiligabend"),
     ("2027-11-26", "Tag nach Thanksgiving"), ("2028-07-03", "Vortag Independence Day"),
@@ -151,13 +161,32 @@ def build(events):
             "END:VEVENT",
         ]
     today = datetime.now(BERLIN).date()
-    for d, name in US_HOLIDAYS:
+    # Eurex: kein Ganztagstermin (Feiertage kommen aus dem iCloud-Kalender),
+    # nur ein Hinweis-Termin am Vortag 18:00
+    flags = {"EU": "\U0001F1EA\U0001F1FA", "DE": "\U0001F1E9\U0001F1EA"}
+    for d, name, scope in EUREX_HOLIDAYS:
         day = datetime.fromisoformat(d).date()
         if day < today:
             continue
-        summary = f"{name} \U0001F1FA\U0001F1F8"
+        start = datetime.combine(day - timedelta(days=1), datetime.min.time()).replace(
+            hour=18, tzinfo=BERLIN)
+        summary = f"EUREX closed tomorrow {flags[scope]}"
         lines += [
-            "BEGIN:VEVENT", f"UID:us-holiday-{d}@ff-news-calendar", f"DTSTAMP:{now}",
+            "BEGIN:VEVENT", f"UID:eurex-holiday-{d}@ff-news-calendar", f"DTSTAMP:{now}",
+            f"DTSTART;TZID=Europe/Berlin:{fmt_local(start)}",
+            f"DTEND;TZID=Europe/Berlin:{fmt_local(start + timedelta(minutes=EVENT_LEN_MIN))}",
+            f"SUMMARY:{esc(summary)}", "TRANSP:TRANSPARENT",
+            "BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{esc(summary)}",
+            "TRIGGER:PT0M", "END:VALARM", "END:VEVENT",
+        ]
+    holidays = [(d, n, "\U0001F1FA\U0001F1F8", "us") for d, n in US_HOLIDAYS]
+    for d, name, flag, src in holidays:
+        day = datetime.fromisoformat(d).date()
+        if day < today:
+            continue
+        summary = f"{name} {flag}"
+        lines += [
+            "BEGIN:VEVENT", f"UID:{src}-holiday-{d}@ff-news-calendar", f"DTSTAMP:{now}",
             f"DTSTART;VALUE=DATE:{day:%Y%m%d}",
             f"DTEND;VALUE=DATE:{day + timedelta(days=1):%Y%m%d}",
             f"SUMMARY:{esc(summary)}", "TRANSP:TRANSPARENT",
