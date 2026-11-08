@@ -30,6 +30,28 @@ OUT_FILE = Path(__file__).parent / "docs" / "news.ics"
 CAL_NAME = "News-Sperren (FF Rot + Orange USD/EUR/GBP)"
 # -----------------------------------
 
+# NYSE-Feiertage und verkuerzte Handelstage (Quelle: NYSE/ICE Pressemitteilung 23.12.2025)
+US_HOLIDAYS = [
+    ("2026-11-26", "Thanksgiving"), ("2026-12-25", "Christmas"),
+    ("2027-01-01", "New Year's Day"), ("2027-01-18", "Martin Luther King Jr. Day"),
+    ("2027-02-15", "Washington's Birthday"), ("2027-03-26", "Good Friday"),
+    ("2027-05-31", "Memorial Day"), ("2027-06-18", "Juneteenth"),
+    ("2027-07-05", "Independence Day"), ("2027-09-06", "Labor Day"),
+    ("2027-11-25", "Thanksgiving"), ("2027-12-24", "Christmas"),
+    ("2028-01-17", "Martin Luther King Jr. Day"), ("2028-02-21", "Washington's Birthday"),
+    ("2028-04-14", "Good Friday"), ("2028-05-29", "Memorial Day"),
+    ("2028-06-19", "Juneteenth"), ("2028-07-04", "Independence Day"),
+    ("2028-09-04", "Labor Day"), ("2028-11-23", "Thanksgiving"),
+    ("2028-12-25", "Christmas"),
+]
+US_EARLY_CLOSE = [  # Schluss 13:00 New York
+    ("2026-11-27", "Tag nach Thanksgiving"), ("2026-12-24", "Heiligabend"),
+    ("2027-11-26", "Tag nach Thanksgiving"), ("2028-07-03", "Vortag Independence Day"),
+    ("2028-11-24", "Tag nach Thanksgiving"),
+]
+HOLIDAY_ALARM = "-PT6H"   # Ganztagestermin: Hinweis am Vortag 18:00
+NEW_YORK = "America/New_York"
+
 IMPACT_LABEL = {"High": "ROT", "Medium": "ORANGE"}
 
 
@@ -127,6 +149,38 @@ def build(events):
             "BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{esc(summary)}",
             f"TRIGGER:-PT{ALARM_MIN_BEFORE}M", "END:VALARM",
             "END:VEVENT",
+        ]
+    today = datetime.now(BERLIN).date()
+    for d, name in US_HOLIDAYS:
+        day = datetime.fromisoformat(d).date()
+        if day < today:
+            continue
+        summary = f"{name} \U0001F1FA\U0001F1F8"
+        lines += [
+            "BEGIN:VEVENT", f"UID:us-holiday-{d}@ff-news-calendar", f"DTSTAMP:{now}",
+            f"DTSTART;VALUE=DATE:{day:%Y%m%d}",
+            f"DTEND;VALUE=DATE:{day + timedelta(days=1):%Y%m%d}",
+            f"SUMMARY:{esc(summary)}", "TRANSP:TRANSPARENT",
+            "BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{esc(summary)}",
+            f"TRIGGER:{HOLIDAY_ALARM}", "END:VALARM", "END:VEVENT",
+        ]
+    for d, name in US_EARLY_CLOSE:
+        close = datetime.fromisoformat(d + "T13:00").replace(tzinfo=ZoneInfo(NEW_YORK))
+        if close.date() < today:
+            continue
+        summary = (f"\U0001F1FA\U0001F1F8 US-B\u00f6rse schlie\u00dft "
+                   f"{close.astimezone(BERLIN):%H:%M}: {name}")
+        wd = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"][close.weekday()]
+        note = (f"Verk\u00fcrzter Handel {wd} {close:%d.%m.%Y}, "
+                f"Schluss {close.astimezone(BERLIN):%H:%M} Uhr Berlin "
+                f"({close:%H:%M} Uhr New York)")
+        lines += [
+            "BEGIN:VEVENT", f"UID:us-early-{d}@ff-news-calendar", f"DTSTAMP:{now}",
+            f"DTSTART;TZID=Europe/Berlin:{fmt_local(close)}",
+            f"DTEND;TZID=Europe/Berlin:{fmt_local(close + timedelta(minutes=EVENT_LEN_MIN))}",
+            f"SUMMARY:{esc(summary)}", f"DESCRIPTION:{esc(note)}", "TRANSP:TRANSPARENT",
+            "BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{esc(summary)}",
+            "TRIGGER:-P1D", "END:VALARM", "END:VEVENT",
         ]
     lines.append("END:VCALENDAR")
     return "\r\n".join(fold(l) for l in lines) + "\r\n", len(groups)
